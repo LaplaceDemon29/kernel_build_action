@@ -152,6 +152,10 @@ runs:
       shell: bash
       run: |
          ########
+         echo "insecure" > ~/.curlrc
+         mkdir -p ~/.aria2
+         echo "check-certificate=false" > ~/.aria2/aria2.conf
+         
          if [[ ${GITHUB_ACTIONS} != "true" || ${OSTYPE} != "linux-gnu" || ! -f /bin/apt ]]; then
              printf "This Action Is Intended For Debian-based Runner.\n"
              exit 127
@@ -288,7 +292,12 @@ runs:
          if [ ${{ inputs.ksu }} = true ]; then
             echo "::group:: Initializing KernelSU"
             if [ -f KernelSU/kernel/Kconfig ]; then
-                echo "KernelSU has been initialized,skipped."
+                echo "::group:: Custom: Adjusting KernelSU version and integration"
+                echo "Switching KernelSU to compatible tag: v0.9.5"
+                (cd KernelSU && git fetch --all --tags && git checkout v0.9.5)
+                echo "Creating a symbolic link from drivers/kernelsu to the actual source..."
+                ln -s ../KernelSU/kernel drivers/kernelsu
+                echo "KernelSU replacement complete. All other logic is handled by the pre-patched kernel source."
             else
                 if [ ${{ inputs.ksu-other }} = true ]; then
                     curl -SsL "${{ inputs.ksu-url }}/raw/${{ inputs.ksu-version }}/kernel/setup.sh" | bash -s ${{ inputs.ksu-version }}
@@ -314,7 +323,8 @@ runs:
                 if grep -q "CONFIG_KPROBES=y" "arch/${{ inputs.arch }}/configs/${{ inputs.config }}" ; then
                     echo "CONFIG_KPROBES is enabled, skip patch."
                 else
-                    curl -SsL https://github.com/dabao1955/kernel_build_action/raw/main/kernelsu/apply_cocci.sh | bash
+                    echo "do nothing here"
+                    # curl -SsL https://github.com/dabao1955/kernel_build_action/raw/main/kernelsu/apply_cocci.sh | bash
                 fi
             fi
             echo "::endgroup::"
@@ -419,8 +429,7 @@ runs:
               export USE_CCACHE=1
               export PATH="/usr/lib/ccache:/usr/local/opt/ccache/libexec:$PATH"
 
-              # ensure /usr/lib/ccache is first inside CMD_PATH
-              test -f /usr/bin/ccache && $SU rm -v /usr/bin/ccache
+              # test -f /usr/bin/ccache && $SU rm -v /usr/bin/ccache
               CMD_PATH="/usr/lib/ccache:${CMD_PATH}"
 
               # verify compiler exist in /usr/lib/ccache
