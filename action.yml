@@ -135,6 +135,10 @@ inputs:
   extra-cmd:
     description: 'Extra options of building kernel.'
     required: false
+  patch-url:
+    description: 'A URL to a .patch or .diff file to be applied after cloning the kernel. Can be a GitHub compare URL.'
+    required: false
+    default: ''
 
 runs:
   using: 'composite'
@@ -251,6 +255,18 @@ runs:
          echo "::group:: Pulling Kernel Source"
          git clone --recursive ${{ inputs.kernel-url }} -b "${{ inputs.kernel-branch }}" --depth=${{ inputs.depth }} kernel/${{ inputs.kernel-dir }}
          echo "::endgroup::"
+
+         if [ ! -z "${{ inputs.patch-url }}" ]; then
+             echo "::group:: Applying custom patch"
+             (
+                cd kernel/${{ inputs.kernel-dir }}
+                echo "Downloading and applying patch from: ${{ inputs.patch-url }}"
+                curl -sSL "${{ inputs.patch-url }}" | git apply -v
+             )
+             echo "::endgroup::"
+         else
+             echo "No custom patch URL provided, skipping patch application."
+         fi
 
          if [ "${{ inputs.vendor }}" = true ]; then
              echo "::group:: Pulling Kernel vendor source"
